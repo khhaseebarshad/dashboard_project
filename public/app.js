@@ -18,6 +18,8 @@ const state = {
     disciplines: [],
     activeTab: 'overview',
     theme: localStorage.getItem('dashboard-theme') || 'dark',
+    sortColumn: null,
+    sortOrder: 'asc',
     
     // Loaded data
     records: [],
@@ -47,8 +49,7 @@ const elements = {
     weightMax: document.getElementById('weight-max'),
     weightMinVal: document.getElementById('weight-min-val'),
     weightMaxVal: document.getElementById('weight-max-val'),
-    countryFilter: document.getElementById('country-filter'),
-    disciplineFilter: document.getElementById('discipline-filter'),
+    pageSizeSelect: document.getElementById('page-size-select'),
     resetBtn: document.getElementById('reset-filters-btn'),
     
     // Header & Navigation
@@ -85,6 +86,8 @@ const elements = {
 document.addEventListener('DOMContentLoaded', () => {
     applyTheme(state.theme);
     setupSliders();
+    initCustomMultiselect('countries');
+    initCustomMultiselect('disciplines');
     setupEventListeners();
     fetchDataAndUpdateUI();
 });
@@ -175,19 +178,30 @@ function setupEventListeners() {
         });
     });
 
-    // Multi-Select Dropdowns (Country & Discipline)
-    const handleMultiSelectChange = (element, stateKey) => {
-        const selectedOptions = Array.from(element.selectedOptions).map(option => option.value);
-        state[stateKey] = selectedOptions;
-        fetchDataAndUpdateUI();
-    };
+    // Page Size Selector Listener
+    if (elements.pageSizeSelect) {
+        elements.pageSizeSelect.value = state.rowsPerPage.toString();
+        elements.pageSizeSelect.addEventListener('change', (e) => {
+            state.rowsPerPage = parseInt(e.target.value);
+            state.currentPage = 1;
+            renderTable();
+        });
+    }
 
-    elements.countryFilter.addEventListener('change', () => {
-        handleMultiSelectChange(elements.countryFilter, 'countries');
-    });
-
-    elements.disciplineFilter.addEventListener('change', () => {
-        handleMultiSelectChange(elements.disciplineFilter, 'disciplines');
+    // Table sorting headers listener
+    document.querySelectorAll('.sortable-header').forEach(header => {
+        header.addEventListener('click', () => {
+            const col = header.getAttribute('data-sort');
+            if (state.sortColumn === col) {
+                state.sortOrder = state.sortOrder === 'asc' ? 'desc' : 'asc';
+            } else {
+                state.sortColumn = col;
+                state.sortOrder = 'asc';
+            }
+            updateSortingHeaderIcons();
+            sortRecords();
+            renderTable();
+        });
     });
 
     // Reset Filters Button
@@ -290,6 +304,8 @@ function resetFilters() {
     state.countries = [];
     state.disciplines = [];
     state.currentPage = 1;
+    state.sortColumn = null;
+    state.sortOrder = 'asc';
 
     // Reset DOM Elements
     elements.searchFilter.value = '';
@@ -312,9 +328,17 @@ function resetFilters() {
     elements.weightMinVal.textContent = 30;
     elements.weightMaxVal.textContent = 150;
 
-    // Deselect options
-    Array.from(elements.countryFilter.options).forEach(opt => opt.selected = false);
-    Array.from(elements.disciplineFilter.options).forEach(opt => opt.selected = false);
+    if (elements.pageSizeSelect) {
+        elements.pageSizeSelect.value = "10";
+        state.rowsPerPage = 10;
+    }
+
+    // Reset custom multiselect chips and search lists
+    updateMultiselectUI('countries');
+    updateMultiselectUI('disciplines');
+    document.getElementById('countries-search').value = '';
+    document.getElementById('disciplines-search').value = '';
+    updateSortingHeaderIcons();
 
     fetchDataAndUpdateUI();
 }
@@ -345,15 +369,20 @@ async function fetchDataAndUpdateUI() {
         
         // Populate dropdowns once
         if (!state.dropdownsPopulated) {
-            populateDropdown(elements.countryFilter, data.countries);
-            populateDropdown(elements.disciplineFilter, data.disciplines);
+            populateCustomMultiselectOptions('countries', data.countries);
+            populateCustomMultiselectOptions('disciplines', data.disciplines);
             state.dropdownsPopulated = true;
+        }
+        
+        if (state.sortColumn) {
+            sortRecords();
         }
         
         // Render statistics & data table
         updateKPIs();
         renderTable();
         updateMatchedAthletesList();
+        generateDynamicInsights();
         
     } catch (error) {
         console.error("Error fetching dashboard data:", error);
@@ -361,16 +390,7 @@ async function fetchDataAndUpdateUI() {
     }
 }
 
-// Helper to populate select dropdowns
-function populateDropdown(selectElement, optionsList) {
-    selectElement.innerHTML = '';
-    optionsList.forEach(option => {
-        const opt = document.createElement('option');
-        opt.value = option;
-        opt.textContent = option;
-        selectElement.appendChild(opt);
-    });
-}
+
 
 // Triggers background reload of Matplotlib generated images
 function updateCharts(queryString) {
@@ -579,4 +599,261 @@ function updateMatchedAthletesList() {
 // Apply selected theme class to body
 function applyTheme(theme) {
     document.body.className = `theme-${theme}`;
+}
+
+// Init custom multiselect dropdown logic
+function initCustomMultiselect(field) {
+    const trigger = document.getElementById(`${field}-trigger`);
+    const searchInput = document.getElementById(`${field}-search`);
+    const clearBtn = document.getElementById(`${field}-clear`);
+    const optionsContainer = document.getElementById(`${field}-options`);
+    const container = document.getElementById(`${field}-multiselect`);
+
+    // Toggle dropdown visibility
+    trigger.addEventListener('click', (e) => {
+        const otherField = field === 'countries' ? 'disciplines' : 'countries';
+        const otherContainer = document.getElementById(`${otherField}-multiselect`);
+        if (otherContainer) {
+            otherContainer.classList.remove('active');
+        }
+        
+        container.classList.toggle('active');
+        if (container.classList.contains('active')) {
+            searchInput.focus();
+        }
+    });
+
+    // Close on click outside
+    document.addEventListener('click', (e) => {
+        if (!container.contains(e.target)) {
+            container.classList.remove('active');
+        }
+    });
+
+    // Search filter
+    searchInput.addEventListener('input', (e) => {
+        const query = e.target.value.toLowerCase();
+        const options = optionsContainer.getElementsByClassName('dropdown-option');
+        Array.from(options).forEach(opt => {
+            const val = opt.getAttribute('data-value').toLowerCase();
+            if (val.includes(query)) {
+                opt.style.display = 'flex';
+            } else {
+                opt.style.display = 'none';
+            }
+        });
+    });
+
+    // Clear selections
+    clearBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        state[field] = [];
+        state.currentPage = 1;
+        updateMultiselectUI(field);
+        fetchDataAndUpdateUI();
+    });
+}
+
+function populateCustomMultiselectOptions(field, optionsList) {
+    const optionsContainer = document.getElementById(`${field}-options`);
+    if (!optionsContainer) return;
+    
+    optionsContainer.innerHTML = '';
+    optionsList.forEach(optVal => {
+        const opt = document.createElement('div');
+        opt.className = 'dropdown-option';
+        opt.setAttribute('data-value', optVal);
+        opt.innerHTML = `<span>${optVal}</span> <i class="fa-solid fa-check"></i>`;
+        
+        if (state[field].includes(optVal)) {
+            opt.classList.add('selected');
+        }
+        
+        opt.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (state[field].includes(optVal)) {
+                state[field] = state[field].filter(v => v !== optVal);
+                opt.classList.remove('selected');
+            } else {
+                state[field].push(optVal);
+                opt.classList.add('selected');
+            }
+            state.currentPage = 1;
+            updateMultiselectUI(field);
+            fetchDataAndUpdateUI();
+        });
+        optionsContainer.appendChild(opt);
+    });
+    
+    updateMultiselectUI(field);
+}
+
+function updateMultiselectUI(field) {
+    const placeholder = document.querySelector(`#${field}-trigger .placeholder`);
+    const chipsContainer = document.getElementById(`${field}-chips`);
+    const optionsContainer = document.getElementById(`${field}-options`);
+    
+    if (optionsContainer) {
+        const options = optionsContainer.getElementsByClassName('dropdown-option');
+        Array.from(options).forEach(opt => {
+            const val = opt.getAttribute('data-value');
+            if (state[field].includes(val)) {
+                opt.classList.add('selected');
+            } else {
+                opt.classList.remove('selected');
+            }
+        });
+    }
+
+    if (state[field].length === 0) {
+        if (placeholder) placeholder.style.display = 'block';
+        if (chipsContainer) chipsContainer.innerHTML = '';
+    } else {
+        if (placeholder) placeholder.style.display = 'none';
+        if (chipsContainer) {
+            chipsContainer.innerHTML = '';
+            state[field].forEach(val => {
+                const chip = document.createElement('div');
+                chip.className = 'chip';
+                chip.innerHTML = `<span>${val}</span> <i class="fa-solid fa-xmark remove-chip"></i>`;
+                chip.querySelector('.remove-chip').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    state[field] = state[field].filter(v => v !== val);
+                    updateMultiselectUI(field);
+                    fetchDataAndUpdateUI();
+                });
+                chipsContainer.appendChild(chip);
+            });
+        }
+    }
+}
+
+// Client-side column sorting
+function sortRecords() {
+    const col = state.sortColumn;
+    if (!col) return;
+    
+    state.records.sort((a, b) => {
+        let valA = a[col];
+        let valB = b[col];
+        
+        if (col === 'disciplines') {
+            valA = valA || '';
+            valB = valB || '';
+        }
+        
+        if (typeof valA === 'string') {
+            valA = valA.toLowerCase();
+            valB = (valB || '').toLowerCase();
+            return state.sortOrder === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+        }
+        
+        if (valA === null || valA === undefined) valA = state.sortOrder === 'asc' ? Infinity : -Infinity;
+        if (valB === null || valB === undefined) valB = state.sortOrder === 'asc' ? Infinity : -Infinity;
+        
+        return state.sortOrder === 'asc' ? valA - valB : valB - valA;
+    });
+}
+
+function updateSortingHeaderIcons() {
+    document.querySelectorAll('.sortable-header').forEach(header => {
+        const col = header.getAttribute('data-sort');
+        const icon = header.querySelector('i');
+        if (icon) {
+            if (state.sortColumn === col) {
+                icon.className = state.sortOrder === 'asc' ? 'fa-solid fa-sort-up' : 'fa-solid fa-sort-down';
+                icon.style.opacity = '1';
+            } else {
+                icon.className = 'fa-solid fa-sort';
+                icon.style.opacity = '0.5';
+            }
+        }
+    });
+}
+
+// Dynamic rule-based insights observations panel generator
+function generateDynamicInsights() {
+    const listElement = document.getElementById('insights-list');
+    if (!listElement) return;
+
+    const records = state.records;
+    const total = records.length;
+    const k = state.kpis;
+
+    if (total === 0) {
+        listElement.innerHTML = `<li><i class="fa-solid fa-triangle-exclamation insight-icon" style="color: var(--color-red);"></i> No matching data is active. Reset filters to see dynamic observations.</li>`;
+        return;
+    }
+
+    const insights = [];
+
+    // 1. Gender distribution insight
+    const femaleCount = records.filter(r => r.gender === 'Female').length;
+    const femalePct = Math.round((femaleCount / total) * 100);
+    const malePct = 100 - femalePct;
+    if (femalePct > 65) {
+        insights.push(`<li><i class="fa-solid fa-venus insight-icon" style="color: var(--color-pink);"></i> Highly female-represented dataset (<strong>${femalePct}% female</strong> vs ${malePct}% male).</li>`);
+    } else if (femalePct < 35) {
+        insights.push(`<li><i class="fa-solid fa-mars insight-icon" style="color: var(--primary);"></i> Highly male-represented dataset (<strong>${malePct}% male</strong> vs ${femalePct}% female).</li>`);
+    } else {
+        insights.push(`<li><i class="fa-solid fa-venus-mars insight-icon" style="color: var(--color-green);"></i> Balanced gender distribution (<strong>${malePct}% male</strong> and <strong>${femalePct}% female</strong>).</li>`);
+    }
+
+    // 2. Average Age insight
+    if (k.avg_age) {
+        const avgAgeNum = parseFloat(k.avg_age);
+        if (avgAgeNum < 24) {
+            insights.push(`<li><i class="fa-solid fa-baby insight-icon" style="color: var(--color-amber);"></i> A very youthful cohort with an average age of <strong>${k.avg_age} years</strong>.</li>`);
+        } else if (avgAgeNum > 35) {
+            insights.push(`<li><i class="fa-solid fa-user-tie insight-icon" style="color: var(--color-blue);"></i> A highly experienced cohort with an average age of <strong>${k.avg_age} years</strong>.</li>`);
+        } else {
+            insights.push(`<li><i class="fa-solid fa-user-check insight-icon" style="color: var(--color-green);"></i> Standard athletic age profile averaging <strong>${k.avg_age} years</strong>.</li>`);
+        }
+    }
+
+    // 3. BMI estimation
+    if (k.avg_height && k.avg_weight) {
+        const heightM = parseFloat(k.avg_height) / 100;
+        const weightKg = parseFloat(k.avg_weight);
+        if (heightM > 0 && weightKg > 0) {
+            const bmi = (weightKg / (heightM * heightM)).toFixed(1);
+            let bmiCategory = 'Normal Weight';
+            let bmiColor = 'var(--color-green)';
+            if (bmi < 18.5) {
+                bmiCategory = 'Underweight';
+                bmiColor = 'var(--color-blue)';
+            } else if (bmi >= 25 && bmi < 30) {
+                bmiCategory = 'Overweight';
+                bmiColor = 'var(--color-amber)';
+            } else if (bmi >= 30) {
+                bmiCategory = 'Obese';
+                bmiColor = 'var(--color-red)';
+            }
+            insights.push(`<li><i class="fa-solid fa-heart-pulse insight-icon" style="color: ${bmiColor};"></i> Estimated cohort average BMI is <strong>${bmi}</strong>, placing them in the <strong>${bmiCategory}</strong> category.</li>`);
+        }
+    }
+
+    // 4. Country dominance
+    const countriesMap = {};
+    records.forEach(r => {
+        if (r.country) {
+            countriesMap[r.country] = (countriesMap[r.country] || 0) + 1;
+        }
+    });
+    const sortedCountries = Object.entries(countriesMap).sort((a, b) => b[1] - a[1]);
+    if (sortedCountries.length > 0) {
+        const [topCountry, topCount] = sortedCountries[0];
+        const topPct = Math.round((topCount / total) * 100);
+        if (topPct > 20) {
+            insights.push(`<li><i class="fa-solid fa-globe insight-icon" style="color: var(--primary);"></i> <strong>${topCountry}</strong> dominates the selected group representing <strong>${topPct}%</strong> of all matched profiles (${topCount} athletes).</li>`);
+        }
+    }
+
+    // 5. Discipline variety
+    const disciplinesSet = new Set(records.map(r => r.disciplines).filter(Boolean));
+    if (disciplinesSet.size > 1) {
+        insights.push(`<li><i class="fa-solid fa-person-running insight-icon" style="color: var(--color-purple);"></i> Active set spans across <strong>${disciplinesSet.size} different sports disciplines</strong>.</li>`);
+    }
+
+    listElement.innerHTML = insights.join('');
 }
