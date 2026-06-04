@@ -68,7 +68,7 @@ def get_data():
 @app.route('/api/charts/<chart_type>', methods=['GET'])
 def get_chart(chart_type):
     """
-    Dynamically renders and returns a chart image (PNG) based on active filters.
+    Dynamically renders and returns a chart image (PNG) based on active filters and active theme.
     """
     try:
         original_df = get_cached_df()
@@ -76,29 +76,30 @@ def get_chart(chart_type):
         return "Dataset not found", 404
         
     filtered_df = filter_dataframe(original_df, request.args)
+    theme = request.args.get('theme', 'dark')
     
     # Chart generation routing
     chart_bytes = None
     if chart_type == 'pie':
-        chart_bytes = charts.generate_pie_chart(filtered_df)
+        chart_bytes = charts.generate_pie_chart(filtered_df, theme)
     elif chart_type == 'histogram':
-        chart_bytes = charts.generate_histogram(filtered_df)
+        chart_bytes = charts.generate_histogram(filtered_df, theme)
     elif chart_type == 'line':
-        chart_bytes = charts.generate_line_chart(filtered_df)
+        chart_bytes = charts.generate_line_chart(filtered_df, theme)
     elif chart_type == 'bar':
-        chart_bytes = charts.generate_bar_chart(filtered_df)
+        chart_bytes = charts.generate_bar_chart(filtered_df, theme)
     elif chart_type == 'scatter':
-        chart_bytes = charts.generate_scatter_plot(filtered_df)
+        chart_bytes = charts.generate_scatter_plot(filtered_df, theme)
     elif chart_type == 'box':
-        chart_bytes = charts.generate_box_plot(filtered_df)
+        chart_bytes = charts.generate_box_plot(filtered_df, theme)
     elif chart_type == 'heatmap':
-        chart_bytes = charts.generate_heatmap(filtered_df)
+        chart_bytes = charts.generate_heatmap(filtered_df, theme)
     elif chart_type == 'area':
-        chart_bytes = charts.generate_area_chart(filtered_df)
+        chart_bytes = charts.generate_area_chart(filtered_df, theme)
     elif chart_type == 'count':
-        chart_bytes = charts.generate_count_plot(filtered_df)
+        chart_bytes = charts.generate_count_plot(filtered_df, theme)
     elif chart_type == 'violin':
-        chart_bytes = charts.generate_violin_plot(filtered_df)
+        chart_bytes = charts.generate_violin_plot(filtered_df, theme)
     else:
         return "Invalid chart type", 400
         
