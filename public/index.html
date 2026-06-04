@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Athletes Insights - Data Visualization Dashboard</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation and Filters -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <i class="fa-solid fa-earth-americas brand-icon"></i>
+                <h2>Athletes Insights</h2>
+            </div>
+            
+            <div class="filters-container">
+                <div class="filter-group">
+                    <label for="search-filter"><i class="fa-solid fa-magnifying-glass"></i> Search</label>
+                    <input type="text" id="search-filter" placeholder="Search by name, country, sport...">
+                </div>
+
+                <div class="filter-group">
+                    <label><i class="fa-solid fa-venus-mars"></i> Gender</label>
+                    <div class="radio-group">
+                        <label class="radio-label">
+                            <input type="radio" name="gender-filter" value="all" checked>
+                            <span>All</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="gender-filter" value="Male">
+                            <span>Male</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="gender-filter" value="Female">
+                            <span>Female</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="filter-group">
+                    <div class="slider-header">
+                        <label><i class="fa-solid fa-calendar"></i> Age Range</label>
+                        <span class="range-display"><span id="age-min-val">14</span> - <span id="age-max-val">72</span> yrs</span>
+                    </div>
+                    <div class="range-slider-container">
+                        <input type="range" id="age-min" min="14" max="72" value="14" class="slider">
+                        <input type="range" id="age-max" min="14" max="72" value="72" class="slider">
+                    </div>
+                </div>
+
+                <div class="filter-group">
+                    <div class="slider-header">
+                        <label><i class="fa-solid fa-arrows-up-down"></i> Height Range</label>
+                        <span class="range-display"><span id="height-min-val">120</span> - <span id="height-max-val">222</span> cm</span>
+                    </div>
+                    <div class="range-slider-container">
+                        <input type="range" id="height-min" min="120" max="222" value="120" class="slider">
+                        <input type="range" id="height-max" min="120" max="222" value="222" class="slider">
+                    </div>
+                </div>
+
+                <div class="filter-group">
+                    <div class="slider-header">
+                        <label><i class="fa-solid fa-weight-hanging"></i> Weight Range</label>
+                        <span class="range-display"><span id="weight-min-val">30</span> - <span id="weight-max-val">150</span> kg</span>
+                    </div>
+                    <div class="range-slider-container">
+                        <input type="range" id="weight-min" min="30" max="150" value="30" class="slider">
+                        <input type="range" id="weight-max" min="30" max="150" value="150" class="slider">
+                    </div>
+                </div>
+
+                <div class="filter-group">
+                    <label for="country-filter"><i class="fa-solid fa-flag"></i> Countries</label>
+                    <select id="country-filter" class="custom-select" multiple size="4">
+                        <!-- Populated dynamically -->
+                    </select>
+                    <small class="help-text">Hold Ctrl / Cmd to select multiple</small>
+                </div>
+
+                <div class="filter-group">
+                    <label for="discipline-filter"><i class="fa-solid fa-person-running"></i> Disciplines</label>
+                    <select id="discipline-filter" class="custom-select" multiple size="4">
+                        <!-- Populated dynamically -->
+                    </select>
+                    <small class="help-text">Hold Ctrl / Cmd to select multiple</small>
+                </div>
+
+                <button class="btn btn-reset" id="reset-filters-btn">
+                    <i class="fa-solid fa-arrow-rotate-left"></i> Reset All Filters
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Display Dashboard Panel -->
+        <main class="main-panel">
+            <header class="main-header">
+                <div class="header-left">
+                    <button class="mobile-toggle-btn" id="mobile-toggle-btn">
+                        <i class="fa-solid fa-bars"></i>
+                    </button>
+                    <div>
+                        <h1>Athletes Analytics Dashboard</h1>
+                        <p class="subtitle">Global Athlete Profiles Exploratory Analysis</p>
+                    </div>
+                </div>
+                <div class="header-right">
+                    <div class="dataset-badge">
+                        <i class="fa-solid fa-database"></i> Active Dataset: <span id="active-dataset-name">athletes.csv</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Navigation Tabs -->
+            <div class="tab-navigation">
+                <button class="tab-btn active" data-tab="overview"><i class="fa-solid fa-chart-line"></i> Insights Overview</button>
+                <button class="tab-btn" data-tab="data-table"><i class="fa-solid fa-table"></i> Raw Data Explorer</button>
+            </div>
+
+            <!-- Tab Content Panel: Overview -->
+            <div class="panel-tab-content active" id="tab-overview">
+                <!-- KPI Section -->
+                <section class="kpi-grid">
+                    <div class="kpi-card glass">
+                        <div class="kpi-icon icon-primary"><i class="fa-solid fa-users"></i></div>
+                        <div class="kpi-data">
+                            <h3 id="kpi-records-val">---</h3>
+                            <p class="kpi-title">Matched Athletes</p>
+                            <span class="kpi-subtext" id="kpi-records-sub">Total matches loaded</span>
+                        </div>
+                    </div>
+                    <div class="kpi-card glass">
+                        <div class="kpi-icon icon-success"><i class="fa-solid fa-baby-carriage"></i></div>
+                        <div class="kpi-data">
+                            <h3 id="kpi-age-val">---</h3>
+                            <p class="kpi-title">Average Age</p>
+                            <span class="kpi-subtext">Years (calculated)</span>
+                        </div>
+                    </div>
+                    <div class="kpi-card glass">
+                        <div class="kpi-icon icon-warning"><i class="fa-solid fa-arrows-up-down"></i></div>
+                        <div class="kpi-data">
+                            <h3 id="kpi-height-val">---</h3>
+                            <p class="kpi-title">Average Height</p>
+                            <span class="kpi-subtext">cm (gender imputed)</span>
+                        </div>
+                    </div>
+                    <div class="kpi-card glass">
+                        <div class="kpi-icon icon-danger"><i class="fa-solid fa-weight-hanging"></i></div>
+                        <div class="kpi-data">
+                            <h3 id="kpi-weight-val">---</h3>
+                            <p class="kpi-title">Average Weight</p>
+                            <span class="kpi-subtext">kg (gender imputed)</span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Dynamic Visualizations Grid -->
+                <section class="charts-grid">
+                    <!-- Matched Athletes List Card -->
+                    <div class="chart-card glass" id="matched-athletes-card">
+                        <div class="chart-header">
+                            <h3><i class="fa-solid fa-user-check"></i> Matched Athletes</h3>
+                        </div>
+                        <div class="chart-body" style="min-height: 270px; display: block; overflow-y: auto; padding: 10px;" id="matched-athletes-list">
+                            <!-- Dynamic list of names -->
+                        </div>
+                    </div>
+
+                    <!-- Chart 1: Pie -->
+                    <div class="chart-card glass">
+                        <div class="chart-header">
+                            <h3><i class="fa-solid fa-chart-pie"></i> Gender Breakdown</h3>
+                            <div class="chart-actions">
+                                <button class="btn-chart-action zoom-btn" data-chart="pie"><i class="fa-solid fa-expand"></i></button>
+                                <a class="btn-chart-action download-btn" data-chart="pie"><i class="fa-solid fa-download"></i></a>
+                            </div>
+                        </div>
+                        <div class="chart-body">
+                            <img id="chart-pie" alt="Gender Distribution" src="">
+                            <div class="spinner"><i class="fa-solid fa-spinner fa-spin"></i></div>
+                        </div>
+                    </div>
+
+                    <!-- Chart 2: Histogram -->
+                    <div class="chart-card glass">
+                        <div class="chart-header">
+                            <h3><i class="fa-solid fa-chart-bar"></i> Age Distribution</h3>
+                            <div class="chart-actions">
+                                <button class="btn-chart-action zoom-btn" data-chart="histogram"><i class="fa-solid fa-expand"></i></button>
+                                <a class="btn-chart-action download-btn" data-chart="histogram"><i class="fa-solid fa-download"></i></a>
+                            </div>
+                        </div>
+                        <div class="chart-body">
+                            <img id="chart-histogram" alt="Age Distribution" src="">
+                            <div class="spinner"><i class="fa-solid fa-spinner fa-spin"></i></div>
+                        </div>
+                    </div>
+
+                    <!-- Chart 3: Line -->
+                    <div class="chart-card glass">
+                        <div class="chart-header">
+                            <h3><i class="fa-solid fa-chart-line"></i> Height Trend by Birth Year</h3>
+                            <div class="chart-actions">
+                                <button class="btn-chart-action zoom-btn" data-chart="line"><i class="fa-solid fa-expand"></i></button>
+                                <a class="btn-chart-action download-btn" data-chart="line"><i class="fa-solid fa-download"></i></a>
+                            </div>
+                        </div>
+                        <div class="chart-body">
+                            <img id="chart-line" alt="Average Height Trend" src="">
+                            <div class="spinner"><i class="fa-solid fa-spinner fa-spin"></i></div>
+                        </div>
+                    </div>
+
+                    <!-- Chart 4: Bar -->
+                    <div class="chart-card glass">
+                        <div class="chart-header">
+                            <h3><i class="fa-solid fa-ranking-star"></i> Top 10 Represented Countries</h3>
+                            <div class="chart-actions">
+                                <button class="btn-chart-action zoom-btn" data-chart="bar"><i class="fa-solid fa-expand"></i></button>
+                                <a class="btn-chart-action download-btn" data-chart="bar"><i class="fa-solid fa-download"></i></a>
+                            </div>
+                        </div>
+                        <div class="chart-body">
+                            <img id="chart-bar" alt="Top represented countries" src="">
+                            <div class="spinner"><i class="fa-solid fa-spinner fa-spin"></i></div>
+                        </div>
+                    </div>
+
+                    <!-- Chart 5: Scatter -->
+                    <div class="chart-card glass">
+                        <div class="chart-header">
+                            <h3><i class="fa-solid fa-chart-simple"></i> Height vs. Weight Scatter</h3>
+                            <div class="chart-actions">
+                                <button class="btn-chart-action zoom-btn" data-chart="scatter"><i class="fa-solid fa-expand"></i></button>
+                                <a class="btn-chart-action download-btn" data-chart="scatter"><i class="fa-solid fa-download"></i></a>
+                            </div>
+                        </div>
+                        <div class="chart-body">
+                            <img id="chart-scatter" alt="Height vs Weight Scatter Plot" src="">
+                            <div class="spinner"><i class="fa-solid fa-spinner fa-spin"></i></div>
+                        </div>
+                    </div>
+
+                    <!-- Chart 6: Box -->
+                    <div class="chart-card glass">
+                        <div class="chart-header">
+                            <h3><i class="fa-solid fa-box-archive"></i> Weight Spread by Gender</h3>
+                            <div class="chart-actions">
+                                <button class="btn-chart-action zoom-btn" data-chart="box"><i class="fa-solid fa-expand"></i></button>
+                                <a class="btn-chart-action download-btn" data-chart="box"><i class="fa-solid fa-download"></i></a>
+                            </div>
+                        </div>
+                        <div class="chart-body">
+                            <img id="chart-box" alt="Weight Distribution Box Plot" src="">
+                            <div class="spinner"><i class="fa-solid fa-spinner fa-spin"></i></div>
+                        </div>
+                    </div>
+
+                    <!-- Chart 7: Heatmap -->
+                    <div class="chart-card glass">
+                        <div class="chart-header">
+                            <h3><i class="fa-solid fa-grip"></i> Numeric Attributes Correlation Matrix</h3>
+                            <div class="chart-actions">
+                                <button class="btn-chart-action zoom-btn" data-chart="heatmap"><i class="fa-solid fa-expand"></i></button>
+                                <a class="btn-chart-action download-btn" data-chart="heatmap"><i class="fa-solid fa-download"></i></a>
+                            </div>
+                        </div>
+                        <div class="chart-body">
+                            <img id="chart-heatmap" alt="Correlation Heatmap" src="">
+                            <div class="spinner"><i class="fa-solid fa-spinner fa-spin"></i></div>
+                        </div>
+                    </div>
+
+                    <!-- Chart 8: Area -->
+                    <div class="chart-card glass">
+                        <div class="chart-header">
+                            <h3><i class="fa-solid fa-chart-area"></i> Cumulative Athlete Count by Birth Year</h3>
+                            <div class="chart-actions">
+                                <button class="btn-chart-action zoom-btn" data-chart="area"><i class="fa-solid fa-expand"></i></button>
+                                <a class="btn-chart-action download-btn" data-chart="area"><i class="fa-solid fa-download"></i></a>
+                            </div>
+                        </div>
+                        <div class="chart-body">
+                            <img id="chart-area" alt="Cumulative Area Chart" src="">
+                            <div class="spinner"><i class="fa-solid fa-spinner fa-spin"></i></div>
+                        </div>
+                    </div>
+
+                    <!-- Chart 9: Count -->
+                    <div class="chart-card glass">
+                        <div class="chart-header">
+                            <h3><i class="fa-solid fa-list-ol"></i> Top 5 Disciplines by Gender</h3>
+                            <div class="chart-actions">
+                                <button class="btn-chart-action zoom-btn" data-chart="count"><i class="fa-solid fa-expand"></i></button>
+                                <a class="btn-chart-action download-btn" data-chart="count"><i class="fa-solid fa-download"></i></a>
+                            </div>
+                        </div>
+                        <div class="chart-body">
+                            <img id="chart-count" alt="Disciplines Count Plot" src="">
+                            <div class="spinner"><i class="fa-solid fa-spinner fa-spin"></i></div>
+                        </div>
+                    </div>
+
+                    <!-- Chart 10: Violin -->
+                    <div class="chart-card glass">
+                        <div class="chart-header">
+                            <h3><i class="fa-solid fa-music"></i> Height Violin Distribution by Gender</h3>
+                            <div class="chart-actions">
+                                <button class="btn-chart-action zoom-btn" data-chart="violin"><i class="fa-solid fa-expand"></i></button>
+                                <a class="btn-chart-action download-btn" data-chart="violin"><i class="fa-solid fa-download"></i></a>
+                            </div>
+                        </div>
+                        <div class="chart-body">
+                            <img id="chart-violin" alt="Height Violin Plot" src="">
+                            <div class="spinner"><i class="fa-solid fa-spinner fa-spin"></i></div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Tab Content Panel: Data Table -->
+            <div class="panel-tab-content" id="tab-data-table">
+                <div class="table-container glass">
+                    <div class="table-header">
+                        <div class="table-info">
+                            <h3>Matched Athlete Records</h3>
+                            <p id="table-matches-count">Showing 0-0 of 0 athletes matched</p>
+                        </div>
+                        <button class="btn btn-export" id="export-csv-btn">
+                            <i class="fa-solid fa-file-export"></i> Export Active Data (CSV)
+                        </button>
+                    </div>
+                    
+                    <div class="table-wrapper">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Name</th>
+                                    <th>Gender</th>
+                                    <th>Age</th>
+                                    <th>Height (cm)</th>
+                                    <th>Weight (kg)</th>
+                                    <th>Country</th>
+                                    <th>Discipline</th>
+                                    <th>Events</th>
+                                    <th>Birth Date</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-body">
+                                <!-- Data rows injected dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="table-pagination">
+                        <button class="pagination-btn" id="prev-page-btn" disabled>
+                            <i class="fa-solid fa-chevron-left"></i> Previous
+                        </button>
+                        <span class="pagination-info" id="pagination-info">Page 1 of 1</span>
+                        <button class="pagination-btn" id="next-page-btn" disabled>
+                            Next <i class="fa-solid fa-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Chart Zoom Lightbox Modal -->
+    <div class="chart-modal" id="chart-modal">
+        <div class="modal-backdrop" id="modal-close-backdrop"></div>
+        <div class="modal-content glass">
+            <header class="modal-header">
+                <h2 id="modal-chart-title">Visualized Insights</h2>
+                <button class="modal-close-btn" id="modal-close-btn"><i class="fa-solid fa-xmark"></i></button>
+            </header>
+            <div class="modal-body">
+                <img id="modal-chart-img" alt="Zoomed Chart" src="">
+            </div>
+        </div>
+    </div>
+
+    <!-- Application Script -->
+    <script src="app.js"></script>
+</body>
+</html>
+<script async data-explicit-opt-in="true" data-deployment-id="dpl_DvLu4q97AgVn9bWj5ikFuMiUqrLw" src="https://vercel.live/_next-live/feedback/feedback.js"></script>
